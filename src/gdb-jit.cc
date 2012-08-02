@@ -1608,6 +1608,7 @@ class DebugLineSection : public DebugSection {
 class UnwindInfoSection : public DebugSection {
  public:
   explicit UnwindInfoSection(CodeDescription* desc);
+  virtual void WriteBody(Writer::Slot<Header> header, Writer* w);
   virtual bool WriteBody(Writer* w);
 
   int WriteCIE(Writer* w);
@@ -1819,6 +1820,14 @@ void UnwindInfoSection::WriteFDEStateAfterRBPPop(Writer* w) {
   w->Write<uint64_t>(desc_->CodeEnd());
 }
 
+void UnwindInfoSection::WriteBody(Writer::Slot<Header> header, Writer* w) {
+  uintptr_t start = w->position();
+  if (WriteBody(w)) {
+    uintptr_t end = w->position();
+    header->offset = start;
+    header->size = end - start;
+  }
+}
 
 bool UnwindInfoSection::WriteBody(Writer* w) {
   uint32_t cie_position = WriteCIE(w);
