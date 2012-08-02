@@ -788,7 +788,7 @@ void MarkCompactCollector::Prepare(GCTracer* tracer) {
 #ifdef ENABLE_GDB_JIT_INTERFACE
   if (FLAG_gdbjit) {
     // If GDBJIT interface is active disable compaction.
-    compacting_collection_ = false;
+    compacting_ = false;
   }
 #endif
 
