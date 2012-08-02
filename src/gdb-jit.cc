@@ -35,7 +35,14 @@
 #include "messages.h"
 #include "platform.h"
 #include "natives.h"
-#include "scopeinfo.h"
+#include "scopes.h"
+
+#ifdef V8_TARGET_ARCH_IA32
+#include "ia32/frames-ia32.h"
+#endif
+#ifdef V8_TARGET_ARCH_X64
+#include "x64/frames-x64.h"
+#endif
 
 namespace v8 {
 namespace internal {
@@ -468,6 +475,10 @@ class StringTable : public ELFSection {
     header->size = size_;
   }
 
+  virtual bool WriteBody(Writer* w) {
+    return false;
+  }
+
  private:
   void WriteString(const char* str) {
     uintptr_t written = 0;
@@ -883,6 +894,10 @@ class ELFSymbolTable : public ELFSection {
     strtab->DetachWriter();
   }
 
+  virtual bool WriteBody(Writer* w) {
+    return false;
+  }
+
   void Add(const ELFSymbol& symbol) {
     if (symbol.binding() == ELFSymbol::BIND_LOCAL) {
       locals_.Add(symbol);
@@ -1074,7 +1089,16 @@ class DebugInfoSection : public DebugSection {
     DW_ATE_SIGNED = 0x5
   };
 
-  bool WriteBody(Writer* w) {
+  virtual void WriteBody(Writer::Slot<Header> header, Writer* w) {
+    uintptr_t start = w->position();
+    if (WriteBody(w)) {
+      uintptr_t end = w->position();
+      header->offset = start;
+      header->size = end - start;
+    }
+  }
+
+  virtual bool WriteBody(Writer* w) {
     uintptr_t cu_start = w->position();
     Writer::Slot<uint32_t> size = w->CreateSlotHere<uint32_t>();
     uintptr_t start = w->position();
@@ -1095,7 +1119,6 @@ class DebugInfoSection : public DebugSection {
 
     if (desc_->IsInfoAvailable()) {
       CompilationInfo* info = desc_->info();
-      ScopeInfo<FreeStoreAllocationPolicy> scope_info(info->scope());
       w->WriteULEB128(2);
       w->WriteString(desc_->name());
       w->Write<intptr_t>(desc_->CodeStart());
@@ -1111,18 +1134,19 @@ class DebugInfoSection : public DebugSection {
 #endif
       fb_block_size.set(static_cast<uint32_t>(w->position() - fb_block_start));
 
-      int params = scope_info.number_of_parameters();
-      int slots = scope_info.number_of_stack_slots();
-      int context_slots = scope_info.number_of_context_slots();
+      Scope* scope_info = info->scope();
+      int params = scope_info->num_parameters();
+      int slots = scope_info->StackLocalCount();
+      int context_slots = scope_info->ContextLocalCount();
       // The real slot ID is internal_slots + context_slot_id.
       int internal_slots = Context::MIN_CONTEXT_SLOTS;
-      int locals = scope_info.LocalCount();
+      int locals = slots + context_slots;
       int current_abbreviation = 4;
 
       for (int param = 0; param < params; ++param) {
         w->WriteULEB128(current_abbreviation++);
         w->WriteString(
-            *scope_info.ParameterName(param)->ToCString(DISALLOW_NULLS));
+            *scope_info->parameter(param)->name()->ToCString(DISALLOW_NULLS));
         w->Write<uint32_t>(ty_offset);
         Writer::Slot<uint32_t> block_size = w->CreateSlotHere<uint32_t>();
         uintptr_t block_start = w->position();
@@ -1167,10 +1191,19 @@ class DebugInfoSection : public DebugSection {
         w->WriteString(builder.Finalize());
       }
 
+      ZoneList<Variable*> stack_locals(scope_info->StackLocalCount());
+      ZoneList<Variable*> context_locals(scope_info->ContextLocalCount());
+      scope_info->CollectStackAndContextLocals(&stack_locals, &context_locals);
+
       for (int local = 0; local < locals; ++local) {
         w->WriteULEB128(current_abbreviation++);
-        w->WriteString(
-            *scope_info.LocalName(local)->ToCString(DISALLOW_NULLS));
+        if (local < slots) {
+          w->WriteString(
+              *stack_locals[local]->name()->ToCString(DISALLOW_NULLS));
+        } else {
+          w->WriteString(
+              *context_locals[local - slots]->name()->ToCString(DISALLOW_NULLS));
+        }
         w->Write<uint32_t>(ty_offset);
         Writer::Slot<uint32_t> block_size = w->CreateSlotHere<uint32_t>();
         uintptr_t block_start = w->position();
@@ -1203,6 +1236,9 @@ class DebugInfoSection : public DebugSection {
         block_size.set(static_cast<uint32_t>(w->position() - block_start));
       }
     }
+
+    w->WriteULEB128(0); // End of children of DIE 3
+    w->WriteULEB128(0); // End of children of DIE 1
 
     size.set(static_cast<uint32_t>(w->position() - start));
     return true;
@@ -1287,7 +1323,16 @@ class DebugAbbrevSection : public DebugSection {
     w->WriteULEB128(0);
   }
 
-  bool WriteBody(Writer* w) {
+  virtual void WriteBody(Writer::Slot<Header> header, Writer* w) {
+    uintptr_t start = w->position();
+    if (WriteBody(w)) {
+      uintptr_t end = w->position();
+      header->offset = start;
+      header->size = end - start;
+    }
+  }
+
+  virtual bool WriteBody(Writer* w) {
     int current_abbreviation = 1;
     bool extra_info = desc_->IsInfoAvailable();
     ASSERT(desc_->IsLineInfoAvailable());
@@ -1307,13 +1352,13 @@ class DebugAbbrevSection : public DebugSection {
 
     if (extra_info) {
       CompilationInfo* info = desc_->info();
-      ScopeInfo<FreeStoreAllocationPolicy> scope_info(info->scope());
-      int params = scope_info.number_of_parameters();
-      int slots = scope_info.number_of_stack_slots();
-      int context_slots = scope_info.number_of_context_slots();
+      Scope* scope_info = info->scope();
+      int params = scope_info->num_parameters();
+      int slots = scope_info->StackLocalCount();
+      int context_slots = scope_info->ContextLocalCount();
       // The real slot ID is internal_slots + context_slot_id.
       int internal_slots = Context::MIN_CONTEXT_SLOTS;
-      int locals = scope_info.LocalCount();
+      int locals = slots + context_slots;
       int total_children =
           params + slots + context_slots + internal_slots + locals + 2;
 
@@ -1373,10 +1418,6 @@ class DebugAbbrevSection : public DebugSection {
 
       // The context.
       WriteVariableAbbreviation(w, current_abbreviation++, true, false);
-
-      if (total_children != 0) {
-        w->WriteULEB128(0);  // Terminate the sibling list.
-      }
     }
 
     w->WriteULEB128(0);  // Terminate the table.
@@ -1418,7 +1459,16 @@ class DebugLineSection : public DebugSection {
     DW_LNE_DEFINE_FILE = 3
   };
 
-  bool WriteBody(Writer* w) {
+  virtual void WriteBody(Writer::Slot<Header> header, Writer* w) {
+    uintptr_t start = w->position();
+    if (WriteBody(w)) {
+      uintptr_t end = w->position();
+      header->offset = start;
+      header->size = end - start;
+    }
+  }
+
+  virtual bool WriteBody(Writer* w) {
     // Write prologue.
     Writer::Slot<uint32_t> total_length = w->CreateSlotHere<uint32_t>();
     uintptr_t start = w->position();
