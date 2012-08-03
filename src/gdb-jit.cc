@@ -197,6 +197,7 @@ class StringTable;
 template<typename THeader>
 class DebugSectionBase : public ZoneObject {
  public:
+  DebugSectionBase(Zone* zone) : zone_(zone) { }
   virtual ~DebugSectionBase() { }
 
   virtual void WriteBody(Writer::Slot<THeader> header, Writer* writer) {
@@ -215,7 +216,12 @@ class DebugSectionBase : public ZoneObject {
     return false;
   }
 
+  Zone* zone() const { return zone_; }
+
   typedef THeader Header;
+
+ private:
+  Zone* zone_;
 };
 
 
@@ -252,8 +258,10 @@ class MachOSection : public DebugSectionBase<MachOSectionHeader> {
   MachOSection(const char* name,
                const char* segment,
                uintptr_t align,
-               uint32_t flags)
-    : name_(name),
+               uint32_t flags,
+	       Zone* zone)
+    : DebugSectionBase(zone),
+      name_(name),
       segment_(segment),
       align_(align),
       flags_(flags) {
@@ -338,8 +346,9 @@ class ELFSection : public DebugSectionBase<ELFSectionHeader> {
     INDEX_ABSOLUTE = 0xfff1
   };
 
-  ELFSection(const char* name, Type type, uintptr_t align)
-      : name_(name), type_(type), align_(align) { }
+  ELFSection(const char* name, Type type, uintptr_t align, Zone* zone)
+      : DebugSectionBase(zone), name_(name), type_(type), align_(align)
+    { }
 
   virtual ~ELFSection() { }
 
@@ -419,8 +428,9 @@ class FullHeaderELFSection : public ELFSection {
                        uintptr_t addr,
                        uintptr_t offset,
                        uintptr_t size,
-                       uintptr_t flags)
-      : ELFSection(name, type, align),
+                       uintptr_t flags,
+		       Zone* zone)
+      : ELFSection(name, type, align, zone),
         addr_(addr),
         offset_(offset),
         size_(size),
@@ -445,8 +455,8 @@ class FullHeaderELFSection : public ELFSection {
 
 class StringTable : public ELFSection {
  public:
-  explicit StringTable(const char* name)
-      : ELFSection(name, TYPE_STRTAB, 1), writer_(NULL), offset_(0), size_(0) {
+  explicit StringTable(const char* name, Zone* zone)
+      : ELFSection(name, TYPE_STRTAB, 1, zone), writer_(NULL), offset_(0), size_(0) {
   }
 
   uintptr_t Add(const char* str) {
@@ -638,9 +648,9 @@ class MachO BASE_EMBEDDED {
 #if defined(__ELF)
 class ELF BASE_EMBEDDED {
  public:
-  ELF() : sections_(6) {
-    sections_.Add(new ELFSection("", ELFSection::TYPE_NULL, 0));
-    sections_.Add(new StringTable(".shstrtab"));
+  ELF(Zone* zone) : sections_(6, zone) {
+    sections_.Add(new(zone) ELFSection("", ELFSection::TYPE_NULL, 0, zone), zone);
+    sections_.Add(new(zone) StringTable(".shstrtab", zone), zone);
   }
 
   void Write(Writer* w) {
@@ -653,8 +663,8 @@ class ELF BASE_EMBEDDED {
     return sections_[index];
   }
 
-  uint32_t AddSection(ELFSection* section) {
-    sections_.Add(section);
+  uint32_t AddSection(ELFSection* section, Zone* zone) {
+    sections_.Add(section, zone);
     section->set_index(sections_.length() - 1);
     return sections_.length() - 1;
   }
@@ -863,10 +873,10 @@ class ELFSymbol BASE_EMBEDDED {
 
 class ELFSymbolTable : public ELFSection {
  public:
-  explicit ELFSymbolTable(const char* name)
-      : ELFSection(name, TYPE_SYMTAB, sizeof(uintptr_t)),
-        locals_(1),
-        globals_(1) {
+  explicit ELFSymbolTable(const char* name, Zone* zone)
+      : ELFSection(name, TYPE_SYMTAB, sizeof(uintptr_t), zone),
+        locals_(1, zone),
+        globals_(1, zone) {
   }
 
   virtual void WriteBody(Writer::Slot<Header> header, Writer* w) {
@@ -900,9 +910,9 @@ class ELFSymbolTable : public ELFSection {
 
   void Add(const ELFSymbol& symbol) {
     if (symbol.binding() == ELFSymbol::BIND_LOCAL) {
-      locals_.Add(symbol);
+      locals_.Add(symbol, zone());
     } else {
-      globals_.Add(symbol);
+      globals_.Add(symbol, zone());
     }
   }
 
@@ -1033,13 +1043,14 @@ class CodeDescription BASE_EMBEDDED {
 #if defined(__ELF)
 static void CreateSymbolsTable(CodeDescription* desc,
                                ELF* elf,
-                               int text_section_index) {
-  ELFSymbolTable* symtab = new ELFSymbolTable(".symtab");
-  StringTable* strtab = new StringTable(".strtab");
+                               int text_section_index,
+			       Zone* zone) {
+  ELFSymbolTable* symtab = new(zone) ELFSymbolTable(".symtab", zone);
+  StringTable* strtab = new(zone) StringTable(".strtab", zone);
 
   // Symbol table should be followed by the linked string table.
-  elf->AddSection(symtab);
-  elf->AddSection(strtab);
+  elf->AddSection(symtab, zone);
+  elf->AddSection(strtab, zone);
 
   symtab->Add(ELFSymbol("V8 Code",
                         0,
@@ -1060,9 +1071,9 @@ static void CreateSymbolsTable(CodeDescription* desc,
 
 class DebugInfoSection : public DebugSection {
  public:
-  explicit DebugInfoSection(CodeDescription* desc)
+  explicit DebugInfoSection(CodeDescription* desc, Zone* zone)
 #if defined(__ELF)
-      : ELFSection(".debug_info", TYPE_PROGBITS, 1),
+      : ELFSection(".debug_info", TYPE_PROGBITS, 1, zone),
 #else
       : MachOSection("__debug_info",
                      "__DWARF",
@@ -1191,8 +1202,10 @@ class DebugInfoSection : public DebugSection {
         w->WriteString(builder.Finalize());
       }
 
-      ZoneList<Variable*> stack_locals(scope_info->StackLocalCount());
-      ZoneList<Variable*> context_locals(scope_info->ContextLocalCount());
+      ZoneList<Variable*> stack_locals(scope_info->StackLocalCount(),
+				       zone());
+      ZoneList<Variable*> context_locals(scope_info->ContextLocalCount(),
+					 zone());
       scope_info->CollectStackAndContextLocals(&stack_locals, &context_locals);
 
       for (int local = 0; local < locals; ++local) {
@@ -1251,14 +1264,15 @@ class DebugInfoSection : public DebugSection {
 
 class DebugAbbrevSection : public DebugSection {
  public:
-  explicit DebugAbbrevSection(CodeDescription* desc)
+  explicit DebugAbbrevSection(CodeDescription* desc, Zone* zone)
 #ifdef __ELF
-      : ELFSection(".debug_abbrev", TYPE_PROGBITS, 1),
+      : ELFSection(".debug_abbrev", TYPE_PROGBITS, 1, zone),
 #else
       : MachOSection("__debug_abbrev",
                      "__DWARF",
                      1,
-                     MachOSection::S_REGULAR | MachOSection::S_ATTR_DEBUG),
+                     MachOSection::S_REGULAR | MachOSection::S_ATTR_DEBUG,
+		     zone),
 #endif
         desc_(desc) { }
 
@@ -1431,14 +1445,15 @@ class DebugAbbrevSection : public DebugSection {
 
 class DebugLineSection : public DebugSection {
  public:
-  explicit DebugLineSection(CodeDescription* desc)
+  explicit DebugLineSection(CodeDescription* desc, Zone* zone)
 #ifdef __ELF
-      : ELFSection(".debug_line", TYPE_PROGBITS, 1),
+      : ELFSection(".debug_line", TYPE_PROGBITS, 1, zone),
 #else
       : MachOSection("__debug_line",
                      "__DWARF",
                      1,
-                     MachOSection::S_REGULAR | MachOSection::S_ATTR_DEBUG),
+                     MachOSection::S_REGULAR | MachOSection::S_ATTR_DEBUG,
+		     zone),
 #endif
         desc_(desc) { }
 
@@ -1607,7 +1622,7 @@ class DebugLineSection : public DebugSection {
 
 class UnwindInfoSection : public DebugSection {
  public:
-  explicit UnwindInfoSection(CodeDescription* desc);
+  explicit UnwindInfoSection(CodeDescription* desc, Zone* zone);
   virtual void WriteBody(Writer::Slot<Header> header, Writer* w);
   virtual bool WriteBody(Writer* w);
 
@@ -1691,12 +1706,12 @@ void UnwindInfoSection::WriteLength(Writer* w,
 }
 
 
-UnwindInfoSection::UnwindInfoSection(CodeDescription* desc)
+UnwindInfoSection::UnwindInfoSection(CodeDescription* desc, Zone* zone)
 #ifdef __ELF
-    : ELFSection(".eh_frame", TYPE_X86_64_UNWIND, 1),
+    : ELFSection(".eh_frame", TYPE_X86_64_UNWIND, 1, zone),
 #else
     : MachOSection("__eh_frame", "__TEXT", sizeof(uintptr_t),
-                   MachOSection::S_REGULAR),
+                   MachOSection::S_REGULAR, zone),
 #endif
       desc_(desc) { }
 
@@ -1838,14 +1853,15 @@ bool UnwindInfoSection::WriteBody(Writer* w) {
 
 #endif  // V8_TARGET_ARCH_X64
 
-static void CreateDWARFSections(CodeDescription* desc, DebugObject* obj) {
+static void CreateDWARFSections(CodeDescription* desc, DebugObject* obj,
+				Zone* zone) {
   if (desc->IsLineInfoAvailable()) {
-    obj->AddSection(new DebugInfoSection(desc));
-    obj->AddSection(new DebugAbbrevSection(desc));
-    obj->AddSection(new DebugLineSection(desc));
+    obj->AddSection(new(zone) DebugInfoSection(desc, zone), zone);
+    obj->AddSection(new(zone) DebugAbbrevSection(desc, zone), zone);
+    obj->AddSection(new(zone) DebugLineSection(desc, zone), zone);
   }
 #ifdef V8_TARGET_ARCH_X64
-  obj->AddSection(new UnwindInfoSection(desc));
+  obj->AddSection(new(zone) UnwindInfoSection(desc, zone), zone);
 #endif
 }
 
@@ -1963,8 +1979,8 @@ static void UnregisterCodeEntry(JITCodeEntry* entry) {
 }
 
 
-static JITCodeEntry* CreateELFObject(CodeDescription* desc) {
-  ZoneScope zone_scope(Isolate::Current(), DELETE_ON_EXIT);
+static JITCodeEntry* CreateELFObject(CodeDescription* desc, Zone* zone) {
+  ZoneScope zone_scope(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
 #ifdef __MACH_O
   MachO mach_o;
   Writer w(&mach_o);
@@ -1977,21 +1993,23 @@ static JITCodeEntry* CreateELFObject(CodeDescription* desc) {
 
   mach_o.Write(&w, desc->CodeStart(), desc->CodeSize());
 #else
-  ELF elf;
+  ELF elf(zone);
   Writer w(&elf);
 
   int text_section_index = elf.AddSection(
-      new FullHeaderELFSection(".text",
-                               ELFSection::TYPE_NOBITS,
-                               kCodeAlignment,
-                               desc->CodeStart(),
-                               0,
-                               desc->CodeSize(),
-                               ELFSection::FLAG_ALLOC | ELFSection::FLAG_EXEC));
+      new(zone) FullHeaderELFSection(".text",
+				     ELFSection::TYPE_NOBITS,
+				     kCodeAlignment,
+				     desc->CodeStart(),
+				     0,
+				     desc->CodeSize(),
+				     ELFSection::FLAG_ALLOC | ELFSection::FLAG_EXEC,
+				     zone),
+      zone);
 
-  CreateSymbolsTable(desc, &elf, text_section_index);
+  CreateSymbolsTable(desc, &elf, text_section_index, zone);
 
-  CreateDWARFSections(desc, &elf);
+  CreateDWARFSections(desc, &elf, zone);
 
   elf.Write(&w);
 #endif
@@ -2044,7 +2062,8 @@ static GDBJITLineInfo* UntagLineInfo(void* ptr) {
 void GDBJITInterface::AddCode(Handle<String> name,
                               Handle<Script> script,
                               Handle<Code> code,
-                              CompilationInfo* info) {
+                              CompilationInfo* info,
+			      Zone* zone) {
   if (!FLAG_gdbjit) return;
 
   // Force initialization of line_ends array.
@@ -2052,9 +2071,10 @@ void GDBJITInterface::AddCode(Handle<String> name,
 
   if (!name.is_null()) {
     SmartArrayPointer<char> name_cstring = name->ToCString(DISALLOW_NULLS);
-    AddCode(*name_cstring, *code, GDBJITInterface::FUNCTION, *script, info);
+    AddCode(*name_cstring, *code, GDBJITInterface::FUNCTION, *script, info,
+	    zone);
   } else {
-    AddCode("", *code, GDBJITInterface::FUNCTION, *script, info);
+    AddCode("", *code, GDBJITInterface::FUNCTION, *script, info, zone);
   }
 }
 
@@ -2102,7 +2122,8 @@ void GDBJITInterface::AddCode(const char* name,
                               Code* code,
                               GDBJITInterface::CodeTag tag,
                               Script* script,
-                              CompilationInfo* info) {
+                              CompilationInfo* info,
+			      Zone* zone) {
   if (!FLAG_gdbjit) return;
 
   ScopedLock lock(mutex.Pointer());
@@ -2127,7 +2148,7 @@ void GDBJITInterface::AddCode(const char* name,
   }
 
   AddUnwindInfo(&code_desc);
-  JITCodeEntry* entry = CreateELFObject(&code_desc);
+  JITCodeEntry* entry = CreateELFObject(&code_desc, zone);
   ASSERT(!IsLineInfoTagged(entry));
 
   delete lineinfo;
@@ -2150,7 +2171,8 @@ void GDBJITInterface::AddCode(const char* name,
 
 void GDBJITInterface::AddCode(GDBJITInterface::CodeTag tag,
                               const char* name,
-                              Code* code) {
+                              Code* code,
+			      Zone* zone) {
   if (!FLAG_gdbjit) return;
 
   EmbeddedVector<char, 256> buffer;
@@ -2164,22 +2186,25 @@ void GDBJITInterface::AddCode(GDBJITInterface::CodeTag tag,
     builder.AddFormatted(": code object %p", static_cast<void*>(code));
   }
 
-  AddCode(builder.Finalize(), code, tag, NULL, NULL);
+  AddCode(builder.Finalize(), code, tag, NULL, NULL, zone);
 }
 
 
 void GDBJITInterface::AddCode(GDBJITInterface::CodeTag tag,
                               String* name,
-                              Code* code) {
+                              Code* code,
+			      Zone* zone) {
   if (!FLAG_gdbjit) return;
-  AddCode(tag, name != NULL ? *name->ToCString(DISALLOW_NULLS) : NULL, code);
+  AddCode(tag, name != NULL ? *name->ToCString(DISALLOW_NULLS) : NULL,
+	  code, zone);
 }
 
 
-void GDBJITInterface::AddCode(GDBJITInterface::CodeTag tag, Code* code) {
+void GDBJITInterface::AddCode(GDBJITInterface::CodeTag tag, Code* code,
+			      Zone* zone) {
   if (!FLAG_gdbjit) return;
 
-  AddCode(tag, "", code);
+  AddCode(tag, "", code, zone);
 }
 
 

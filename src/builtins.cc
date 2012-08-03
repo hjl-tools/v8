@@ -1645,7 +1645,7 @@ void Builtins::SetUp(bool create_heap_objects) {
                               functions[i].s_name));
       GDBJIT(AddCode(GDBJITInterface::BUILTIN,
                      functions[i].s_name,
-                     Code::cast(code)));
+                     Code::cast(code), isolate->runtime_zone()));
       builtins_[i] = code;
 #ifdef ENABLE_DISASSEMBLER
       if (FLAG_print_builtin_code) {

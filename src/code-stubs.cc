@@ -76,7 +76,8 @@ void CodeStub::RecordCodeGeneration(Code* code, MacroAssembler* masm) {
   Isolate* isolate = masm->isolate();
   SmartArrayPointer<const char> name = GetName();
   PROFILE(isolate, CodeCreateEvent(Logger::STUB_TAG, code, *name));
-  GDBJIT(AddCode(GDBJITInterface::STUB, *name, code));
+  GDBJIT(AddCode(GDBJITInterface::STUB, *name, code,
+		 isolate->runtime_zone()));
   Counters* counters = isolate->counters();
   counters->total_stubs_code_size()->Increment(code->instruction_size());
 }

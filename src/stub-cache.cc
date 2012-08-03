@@ -127,7 +127,8 @@ Handle<Code> StubCache::ComputeLoadNonexistent(Handle<String> name,
   Handle<Code> code =
       compiler.CompileLoadNonexistent(cache_name, receiver, last);
   PROFILE(isolate_, CodeCreateEvent(Logger::LOAD_IC_TAG, *code, *cache_name));
-  GDBJIT(AddCode(GDBJITInterface::LOAD_IC, *cache_name, *code));
+  GDBJIT(AddCode(GDBJITInterface::LOAD_IC, *cache_name, *code,
+		 isolate_->runtime_zone()));
   JSObject::UpdateMapCodeCache(receiver, cache_name, code);
   return code;
 }
@@ -146,7 +147,8 @@ Handle<Code> StubCache::ComputeLoadField(Handle<String> name,
   Handle<Code> code =
       compiler.CompileLoadField(receiver, holder, field_index, name);
   PROFILE(isolate_, CodeCreateEvent(Logger::LOAD_IC_TAG, *code, *name));
-  GDBJIT(AddCode(GDBJITInterface::LOAD_IC, *name, *code));
+  GDBJIT(AddCode(GDBJITInterface::LOAD_IC, *name, *code,
+		 isolate_->runtime_zone()));
   JSObject::UpdateMapCodeCache(receiver, name, code);
   return code;
 }
@@ -167,7 +169,8 @@ Handle<Code> StubCache::ComputeLoadCallback(Handle<String> name,
   Handle<Code> code =
       compiler.CompileLoadCallback(name, receiver, holder, callback);
   PROFILE(isolate_, CodeCreateEvent(Logger::LOAD_IC_TAG, *code, *name));
-  GDBJIT(AddCode(GDBJITInterface::LOAD_IC, *name, *code));
+  GDBJIT(AddCode(GDBJITInterface::LOAD_IC, *name, *code,
+		 isolate_->runtime_zone()));
   JSObject::UpdateMapCodeCache(receiver, name, code);
   return code;
 }
@@ -187,7 +190,8 @@ Handle<Code> StubCache::ComputeLoadViaGetter(Handle<String> name,
   Handle<Code> code =
       compiler.CompileLoadViaGetter(name, receiver, holder, getter);
   PROFILE(isolate_, CodeCreateEvent(Logger::LOAD_IC_TAG, *code, *name));
-  GDBJIT(AddCode(GDBJITInterface::LOAD_IC, *name, *code));
+  GDBJIT(AddCode(GDBJITInterface::LOAD_IC, *name, *code,
+		 isolate_->runtime_zone()));
   JSObject::UpdateMapCodeCache(receiver, name, code);
   return code;
 }
@@ -207,7 +211,8 @@ Handle<Code> StubCache::ComputeLoadConstant(Handle<String> name,
   Handle<Code> code =
         compiler.CompileLoadConstant(receiver, holder, value, name);
   PROFILE(isolate_, CodeCreateEvent(Logger::LOAD_IC_TAG, *code, *name));
-  GDBJIT(AddCode(GDBJITInterface::LOAD_IC, *name, *code));
+  GDBJIT(AddCode(GDBJITInterface::LOAD_IC, *name, *code,
+		 isolate_->runtime_zone()));
   JSObject::UpdateMapCodeCache(receiver, name, code);
   return code;
 }
@@ -226,7 +231,8 @@ Handle<Code> StubCache::ComputeLoadInterceptor(Handle<String> name,
   Handle<Code> code =
         compiler.CompileLoadInterceptor(receiver, holder, name);
   PROFILE(isolate_, CodeCreateEvent(Logger::LOAD_IC_TAG, *code, *name));
-  GDBJIT(AddCode(GDBJITInterface::LOAD_IC, *name, *code));
+  GDBJIT(AddCode(GDBJITInterface::LOAD_IC, *name, *code,
+		 isolate_->runtime_zone()));
   JSObject::UpdateMapCodeCache(receiver, name, code);
   return code;
 }
@@ -252,7 +258,8 @@ Handle<Code> StubCache::ComputeLoadGlobal(Handle<String> name,
   Handle<Code> code =
       compiler.CompileLoadGlobal(receiver, holder, cell, name, is_dont_delete);
   PROFILE(isolate_, CodeCreateEvent(Logger::LOAD_IC_TAG, *code, *name));
-  GDBJIT(AddCode(GDBJITInterface::LOAD_IC, *name, *code));
+  GDBJIT(AddCode(GDBJITInterface::LOAD_IC, *name, *code,
+		 isolate_->runtime_zone()));
   JSObject::UpdateMapCodeCache(receiver, name, code);
   return code;
 }
@@ -272,7 +279,8 @@ Handle<Code> StubCache::ComputeKeyedLoadField(Handle<String> name,
   Handle<Code> code =
       compiler.CompileLoadField(name, receiver, holder, field_index);
   PROFILE(isolate_, CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, *code, *name));
-  GDBJIT(AddCode(GDBJITInterface::KEYED_LOAD_IC, *name, *code));
+  GDBJIT(AddCode(GDBJITInterface::KEYED_LOAD_IC, *name, *code,
+		 isolate_->runtime_zone()));
   JSObject::UpdateMapCodeCache(receiver, name, code);
   return code;
 }
@@ -292,7 +300,8 @@ Handle<Code> StubCache::ComputeKeyedLoadConstant(Handle<String> name,
   Handle<Code> code =
       compiler.CompileLoadConstant(name, receiver, holder, value);
   PROFILE(isolate_, CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, *code, *name));
-  GDBJIT(AddCode(GDBJITInterface::KEYED_LOAD_IC, *name, *code));
+  GDBJIT(AddCode(GDBJITInterface::KEYED_LOAD_IC, *name, *code,
+		 isolate_->runtime_zone()));
   JSObject::UpdateMapCodeCache(receiver, name, code);
   return code;
 }
@@ -310,7 +319,8 @@ Handle<Code> StubCache::ComputeKeyedLoadInterceptor(Handle<String> name,
   KeyedLoadStubCompiler compiler(isolate_);
   Handle<Code> code = compiler.CompileLoadInterceptor(receiver, holder, name);
   PROFILE(isolate_, CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, *code, *name));
-  GDBJIT(AddCode(GDBJITInterface::KEYED_LOAD_IC, *name, *code));
+  GDBJIT(AddCode(GDBJITInterface::KEYED_LOAD_IC, *name, *code,
+		 isolate_->runtime_zone()));
   JSObject::UpdateMapCodeCache(receiver, name, code);
   return code;
 }
@@ -331,7 +341,8 @@ Handle<Code> StubCache::ComputeKeyedLoadCallback(
   Handle<Code> code =
       compiler.CompileLoadCallback(name, receiver, holder, callback);
   PROFILE(isolate_, CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, *code, *name));
-  GDBJIT(AddCode(GDBJITInterface::KEYED_LOAD_IC, *name, *code));
+  GDBJIT(AddCode(GDBJITInterface::KEYED_LOAD_IC, *name, *code,
+		 isolate_->runtime_zone()));
   JSObject::UpdateMapCodeCache(receiver, name, code);
   return code;
 }
@@ -347,7 +358,8 @@ Handle<Code> StubCache::ComputeKeyedLoadArrayLength(Handle<String> name,
   KeyedLoadStubCompiler compiler(isolate_);
   Handle<Code> code = compiler.CompileLoadArrayLength(name);
   PROFILE(isolate_, CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, *code, *name));
-  GDBJIT(AddCode(GDBJITInterface::KEYED_LOAD_IC, *name, *code));
+  GDBJIT(AddCode(GDBJITInterface::KEYED_LOAD_IC, *name, *code,
+		 isolate_->runtime_zone()));
   JSObject::UpdateMapCodeCache(receiver, name, code);
   return code;
 }
@@ -364,7 +376,8 @@ Handle<Code> StubCache::ComputeKeyedLoadStringLength(Handle<String> name,
   KeyedLoadStubCompiler compiler(isolate_);
   Handle<Code> code = compiler.CompileLoadStringLength(name);
   PROFILE(isolate_, CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, *code, *name));
-  GDBJIT(AddCode(GDBJITInterface::KEYED_LOAD_IC, *name, *code));
+  GDBJIT(AddCode(GDBJITInterface::KEYED_LOAD_IC, *name, *code,
+		 isolate_->runtime_zone()));
   Map::UpdateCodeCache(map, name, code);
   return code;
 }
@@ -381,7 +394,8 @@ Handle<Code> StubCache::ComputeKeyedLoadFunctionPrototype(
   KeyedLoadStubCompiler compiler(isolate_);
   Handle<Code> code = compiler.CompileLoadFunctionPrototype(name);
   PROFILE(isolate_, CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, *code, *name));
-  GDBJIT(AddCode(GDBJITInterface::KEYED_LOAD_IC, *name, *code));
+  GDBJIT(AddCode(GDBJITInterface::KEYED_LOAD_IC, *name, *code,
+		 isolate_->runtime_zone()));
   JSObject::UpdateMapCodeCache(receiver, name, code);
   return code;
 }
@@ -403,7 +417,8 @@ Handle<Code> StubCache::ComputeStoreField(Handle<String> name,
   Handle<Code> code =
       compiler.CompileStoreField(receiver, field_index, transition, name);
   PROFILE(isolate_, CodeCreateEvent(Logger::STORE_IC_TAG, *code, *name));
-  GDBJIT(AddCode(GDBJITInterface::STORE_IC, *name, *code));
+  GDBJIT(AddCode(GDBJITInterface::STORE_IC, *name, *code,
+		 isolate_->runtime_zone()));
   JSObject::UpdateMapCodeCache(receiver, name, code);
   return code;
 }
@@ -496,7 +511,8 @@ Handle<Code> StubCache::ComputeStoreGlobal(Handle<String> name,
   StoreStubCompiler compiler(isolate_, strict_mode);
   Handle<Code> code = compiler.CompileStoreGlobal(receiver, cell, name);
   PROFILE(isolate_, CodeCreateEvent(Logger::STORE_IC_TAG, *code, *name));
-  GDBJIT(AddCode(GDBJITInterface::STORE_IC, *name, *code));
+  GDBJIT(AddCode(GDBJITInterface::STORE_IC, *name, *code,
+		 isolate_->runtime_zone()));
   JSObject::UpdateMapCodeCache(receiver, name, code);
   return code;
 }
@@ -515,7 +531,8 @@ Handle<Code> StubCache::ComputeStoreCallback(Handle<String> name,
   StoreStubCompiler compiler(isolate_, strict_mode);
   Handle<Code> code = compiler.CompileStoreCallback(receiver, callback, name);
   PROFILE(isolate_, CodeCreateEvent(Logger::STORE_IC_TAG, *code, *name));
-  GDBJIT(AddCode(GDBJITInterface::STORE_IC, *name, *code));
+  GDBJIT(AddCode(GDBJITInterface::STORE_IC, *name, *code,
+		 isolate_->runtime_zone()));
   JSObject::UpdateMapCodeCache(receiver, name, code);
   return code;
 }
@@ -535,7 +552,8 @@ Handle<Code> StubCache::ComputeStoreViaSetter(Handle<String> name,
   Handle<Code> code =
       compiler.CompileStoreViaSetter(name, receiver, holder, setter);
   PROFILE(isolate_, CodeCreateEvent(Logger::STORE_IC_TAG, *code, *name));
-  GDBJIT(AddCode(GDBJITInterface::STORE_IC, *name, *code));
+  GDBJIT(AddCode(GDBJITInterface::STORE_IC, *name, *code,
+		 isolate_->runtime_zone()));
   JSObject::UpdateMapCodeCache(receiver, name, code);
   return code;
 }
@@ -552,7 +570,8 @@ Handle<Code> StubCache::ComputeStoreInterceptor(Handle<String> name,
   StoreStubCompiler compiler(isolate_, strict_mode);
   Handle<Code> code = compiler.CompileStoreInterceptor(receiver, name);
   PROFILE(isolate_, CodeCreateEvent(Logger::STORE_IC_TAG, *code, *name));
-  GDBJIT(AddCode(GDBJITInterface::STORE_IC, *name, *code));
+  GDBJIT(AddCode(GDBJITInterface::STORE_IC, *name, *code,
+		 isolate_->runtime_zone()));
   JSObject::UpdateMapCodeCache(receiver, name, code);
   return code;
 }
@@ -574,7 +593,8 @@ Handle<Code> StubCache::ComputeKeyedStoreField(Handle<String> name,
   Handle<Code> code =
       compiler.CompileStoreField(receiver, field_index, transition, name);
   PROFILE(isolate_, CodeCreateEvent(Logger::KEYED_STORE_IC_TAG, *code, *name));
-  GDBJIT(AddCode(GDBJITInterface::KEYED_STORE_IC, *name, *code));
+  GDBJIT(AddCode(GDBJITInterface::KEYED_STORE_IC, *name, *code,
+		 isolate_->runtime_zone()));
   JSObject::UpdateMapCodeCache(receiver, name, code);
   return code;
 }
@@ -618,7 +638,8 @@ Handle<Code> StubCache::ComputeCallConstant(int argc,
   ASSERT_EQ(flags, code->flags());
   PROFILE(isolate_,
           CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_IC_TAG), *code, *name));
-  GDBJIT(AddCode(GDBJITInterface::CALL_IC, *name, *code));
+  GDBJIT(AddCode(GDBJITInterface::CALL_IC, *name, *code,
+		 isolate_->runtime_zone()));
   JSObject::UpdateMapCodeCache(map_holder, name, code);
   return code;
 }
@@ -656,7 +677,8 @@ Handle<Code> StubCache::ComputeCallField(int argc,
   ASSERT_EQ(flags, code->flags());
   PROFILE(isolate_,
           CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_IC_TAG), *code, *name));
-  GDBJIT(AddCode(GDBJITInterface::CALL_IC, *name, *code));
+  GDBJIT(AddCode(GDBJITInterface::CALL_IC, *name, *code,
+		 isolate_->runtime_zone()));
   JSObject::UpdateMapCodeCache(map_holder, name, code);
   return code;
 }
@@ -693,7 +715,8 @@ Handle<Code> StubCache::ComputeCallInterceptor(int argc,
   ASSERT_EQ(flags, code->flags());
   PROFILE(isolate(),
           CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_IC_TAG), *code, *name));
-  GDBJIT(AddCode(GDBJITInterface::CALL_IC, *name, *code));
+  GDBJIT(AddCode(GDBJITInterface::CALL_IC, *name, *code,
+		 isolate()->runtime_zone()));
   JSObject::UpdateMapCodeCache(map_holder, name, code);
   return code;
 }
@@ -722,7 +745,8 @@ Handle<Code> StubCache::ComputeCallGlobal(int argc,
   ASSERT_EQ(flags, code->flags());
   PROFILE(isolate(),
           CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_IC_TAG), *code, *name));
-  GDBJIT(AddCode(GDBJITInterface::CALL_IC, *name, *code));
+  GDBJIT(AddCode(GDBJITInterface::CALL_IC, *name, *code,
+		 isolate()->runtime_zone()));
   JSObject::UpdateMapCodeCache(map_holder, name, code);
   return code;
 }
@@ -1202,7 +1226,8 @@ Handle<Code> StubCompiler::CompileCallInitialize(Code::Flags flags) {
   PROFILE(isolate(),
           CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_INITIALIZE_TAG),
                           *code, code->arguments_count()));
-  GDBJIT(AddCode(GDBJITInterface::CALL_INITIALIZE, *code));
+  GDBJIT(AddCode(GDBJITInterface::CALL_INITIALIZE, *code,
+		 isolate()->runtime_zone()));
   return code;
 }
 
@@ -1223,7 +1248,8 @@ Handle<Code> StubCompiler::CompileCallPreMonomorphic(Code::Flags flags) {
   PROFILE(isolate(),
           CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_PRE_MONOMORPHIC_TAG),
                           *code, code->arguments_count()));
-  GDBJIT(AddCode(GDBJITInterface::CALL_PRE_MONOMORPHIC, *code));
+  GDBJIT(AddCode(GDBJITInterface::CALL_PRE_MONOMORPHIC, *code,
+		 isolate()->runtime_zone()));
   return code;
 }
 
@@ -1244,7 +1270,8 @@ Handle<Code> StubCompiler::CompileCallNormal(Code::Flags flags) {
   PROFILE(isolate(),
           CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_NORMAL_TAG),
                           *code, code->arguments_count()));
-  GDBJIT(AddCode(GDBJITInterface::CALL_NORMAL, *code));
+  GDBJIT(AddCode(GDBJITInterface::CALL_NORMAL, *code,
+		  isolate()->runtime_zone()));
   return code;
 }
 
@@ -1263,7 +1290,8 @@ Handle<Code> StubCompiler::CompileCallMegamorphic(Code::Flags flags) {
   PROFILE(isolate(),
           CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_MEGAMORPHIC_TAG),
                           *code, code->arguments_count()));
-  GDBJIT(AddCode(GDBJITInterface::CALL_MEGAMORPHIC, *code));
+  GDBJIT(AddCode(GDBJITInterface::CALL_MEGAMORPHIC, *code,
+		  isolate()->runtime_zone()));
   return code;
 }
 
@@ -1276,7 +1304,8 @@ Handle<Code> StubCompiler::CompileCallArguments(Code::Flags flags) {
           CodeCreateEvent(CALL_LOGGER_TAG(Code::ExtractKindFromFlags(flags),
                                           CALL_MEGAMORPHIC_TAG),
                           *code, code->arguments_count()));
-  GDBJIT(AddCode(GDBJITInterface::CALL_MEGAMORPHIC, *code));
+  GDBJIT(AddCode(GDBJITInterface::CALL_MEGAMORPHIC, *code,
+		  isolate()->runtime_zone()));
   return code;
 }
 
@@ -1295,7 +1324,8 @@ Handle<Code> StubCompiler::CompileCallMiss(Code::Flags flags) {
   PROFILE(isolate(),
           CodeCreateEvent(CALL_LOGGER_TAG(kind, CALL_MISS_TAG),
                           *code, code->arguments_count()));
-  GDBJIT(AddCode(GDBJITInterface::CALL_MISS, *code));
+  GDBJIT(AddCode(GDBJITInterface::CALL_MISS, *code,
+		  isolate()->runtime_zone()));
   return code;
 }
 
@@ -1372,7 +1402,8 @@ Handle<Code> LoadStubCompiler::GetCode(Code::StubType type,
   Code::Flags flags = Code::ComputeMonomorphicFlags(Code::LOAD_IC, type);
   Handle<Code> code = GetCodeWithFlags(flags, name);
   PROFILE(isolate(), CodeCreateEvent(Logger::LOAD_IC_TAG, *code, *name));
-  GDBJIT(AddCode(GDBJITInterface::LOAD_IC, *name, *code));
+  GDBJIT(AddCode(GDBJITInterface::LOAD_IC, *name, *code,
+		  isolate()->runtime_zone()));
   return code;
 }
 
@@ -1384,7 +1415,8 @@ Handle<Code> KeyedLoadStubCompiler::GetCode(Code::StubType type,
       Code::KEYED_LOAD_IC, state, Code::kNoExtraICState, type);
   Handle<Code> code = GetCodeWithFlags(flags, name);
   PROFILE(isolate(), CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, *code, *name));
-  GDBJIT(AddCode(GDBJITInterface::LOAD_IC, *name, *code));
+  GDBJIT(AddCode(GDBJITInterface::LOAD_IC, *name, *code,
+		  isolate()->runtime_zone()));
   return code;
 }
 
@@ -1395,7 +1427,8 @@ Handle<Code> StoreStubCompiler::GetCode(Code::StubType type,
       Code::ComputeMonomorphicFlags(Code::STORE_IC, type, strict_mode_);
   Handle<Code> code = GetCodeWithFlags(flags, name);
   PROFILE(isolate(), CodeCreateEvent(Logger::STORE_IC_TAG, *code, *name));
-  GDBJIT(AddCode(GDBJITInterface::STORE_IC, *name, *code));
+  GDBJIT(AddCode(GDBJITInterface::STORE_IC, *name, *code,
+		  isolate()->runtime_zone()));
   return code;
 }
 
@@ -1409,7 +1442,8 @@ Handle<Code> KeyedStoreStubCompiler::GetCode(Code::StubType type,
       Code::ComputeFlags(Code::KEYED_STORE_IC, state, extra_state, type);
   Handle<Code> code = GetCodeWithFlags(flags, name);
   PROFILE(isolate(), CodeCreateEvent(Logger::KEYED_STORE_IC_TAG, *code, *name));
-  GDBJIT(AddCode(GDBJITInterface::KEYED_STORE_IC, *name, *code));
+  GDBJIT(AddCode(GDBJITInterface::KEYED_STORE_IC, *name, *code,
+		  isolate()->runtime_zone()));
   return code;
 }
 
@@ -1503,7 +1537,8 @@ Handle<Code> ConstructStubCompiler::GetCode() {
   Code::Flags flags = Code::ComputeFlags(Code::STUB);
   Handle<Code> code = GetCodeWithFlags(flags, "ConstructStub");
   PROFILE(isolate(), CodeCreateEvent(Logger::STUB_TAG, *code, "ConstructStub"));
-  GDBJIT(AddCode(GDBJITInterface::STUB, "ConstructStub", *code));
+  GDBJIT(AddCode(GDBJITInterface::STUB, "ConstructStub", *code,
+		  isolate()->runtime_zone()));
   return code;
 }
 
